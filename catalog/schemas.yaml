@@ -1,0 +1,13 @@
+# Unity Catalog — Schema (namespace) definitions
+schemas:
+  - catalog: main
+    name: bronze
+    comment: "Raw ingestion layer — append-only, minimal transformation"
+
+  - catalog: main
+    name: silver
+    comment: "Cleansed layer — deduplicated, schema-enforced, typed"
+
+  - catalog: main
+    name: gold
+    comment: "Business layer — aggregates and metrics ready for BI"

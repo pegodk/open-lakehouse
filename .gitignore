@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Environment
+.env
+
+# Spark
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Delta Lake
+_delta_log/
+
+# IDE
+.idea/
+.vscode/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Dagster
+.dagster/
+storage/
+schedules/
+history/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# uv
+uv.lock

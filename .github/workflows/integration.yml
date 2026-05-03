@@ -1,0 +1,51 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Start services (UC + MinIO)
+        run: docker compose up -d --wait
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for Unity Catalog..."
+          timeout 60 bash -c 'until curl -sf http://localhost:8080/api/2.1/unity-catalog/catalogs; do sleep 2; done'
+          echo "Waiting for MinIO..."
+          timeout 30 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 2; done'
+
+      - name: Setup catalog
+        run: uv run python scripts/setup_catalog.py
+        env:
+          UC_SERVER_URL: http://localhost:8080/api/2.1/unity-catalog
+
+      - name: Run integration tests
+        run: uv run pytest tests/integration/ -v -m integration --tb=short
+        env:
+          UC_SERVER_URL: http://localhost:8080/api/2.1/unity-catalog
+          MINIO_ENDPOINT: http://localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+          STORAGE_ROOT: s3a://lakehouse/
+          CATALOG_NAME: main
+          ENV: local
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v

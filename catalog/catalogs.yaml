@@ -1,0 +1,4 @@
+# Unity Catalog — Catalog definitions
+catalogs:
+  - name: main
+    comment: "Primary lakehouse catalog"

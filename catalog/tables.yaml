@@ -1,0 +1,22 @@
+# Unity Catalog — Table registrations
+tables:
+  - catalog: main
+    schema: bronze
+    name: orders
+    type: EXTERNAL
+    storage_location: "s3a://lakehouse/bronze/orders/"
+    comment: "Raw orders ingested from source systems"
+
+  - catalog: main
+    schema: silver
+    name: orders
+    type: EXTERNAL
+    storage_location: "s3a://lakehouse/silver/orders/"
+    comment: "Cleansed, deduplicated, schema-enforced orders"
+
+  - catalog: main
+    schema: gold
+    name: daily_sales
+    type: EXTERNAL
+    storage_location: "s3a://lakehouse/gold/daily_sales/"
+    comment: "Daily sales aggregation by product"
