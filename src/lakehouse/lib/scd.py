@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from delta.tables import DeltaTable
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
-
-from delta.tables import DeltaTable
 
 
 def scd_type1(

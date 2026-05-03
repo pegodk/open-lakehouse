@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dagster import ConfigurableResource, EnvVar
+from dagster import ConfigurableResource
 from pyspark.sql import SparkSession
 
 from lakehouse.lib.session import get_spark_session

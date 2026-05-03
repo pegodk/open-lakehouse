@@ -82,7 +82,7 @@ def enforce_schema(
 
     # Cast type mismatches
     if cast_types:
-        for col_name, (expected_type_str, _) in type_mismatches.items():
+        for col_name, (_expected_type_str, _) in type_mismatches.items():
             target_type = expected_fields[col_name].dataType
             result = result.withColumn(col_name, F.col(col_name).cast(target_type))
 

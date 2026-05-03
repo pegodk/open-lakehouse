@@ -22,7 +22,6 @@ def get_spark_session(
     environment = os.getenv("ENV", "local")
     catalog_name = os.getenv("CATALOG_NAME", "main")
     uc_server_url = os.getenv("UC_SERVER_URL", "")
-    storage_root = os.getenv("STORAGE_ROOT", "")
     minio_endpoint = os.getenv("MINIO_ENDPOINT", "")
     minio_access_key = os.getenv("MINIO_ACCESS_KEY", "")
     minio_secret_key = os.getenv("MINIO_SECRET_KEY", "")
@@ -40,7 +39,10 @@ def get_spark_session(
     # Unity Catalog configuration (non-local environments or when UC_SERVER_URL is set)
     if uc_server_url:
         builder = (
-            builder.config(f"spark.sql.catalog.{catalog_name}", "io.unitycatalog.spark.UCSingleCatalog")
+            builder.config(
+                f"spark.sql.catalog.{catalog_name}",
+                "io.unitycatalog.spark.UCSingleCatalog",
+            )
             .config(f"spark.sql.catalog.{catalog_name}.uri", uc_server_url)
             .config(f"spark.sql.catalog.{catalog_name}.token", "")
         )

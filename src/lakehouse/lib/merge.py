@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from pyspark.sql import DataFrame, SparkSession
-
 from delta.tables import DeltaTable
+from pyspark.sql import DataFrame, SparkSession
 
 
 def upsert(
