@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 
+from delta import configure_spark_with_delta_pip
 from dotenv import load_dotenv
 from pyspark.sql import SparkSession
 
@@ -66,4 +67,4 @@ def get_spark_session(
             .config("spark.ui.enabled", "false")
         )
 
-    return builder.getOrCreate()
+    return configure_spark_with_delta_pip(builder).getOrCreate()

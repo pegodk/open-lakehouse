@@ -72,7 +72,8 @@ docker compose up -d
 ```
 
 This starts:
-- **Unity Catalog** — http://localhost:8080
+- **Unity Catalog API** — http://localhost:8080
+- **Unity Catalog UI** — http://localhost:3000
 - **MinIO** — http://localhost:9000 (API), http://localhost:9001 (console, `minioadmin`/`minioadmin`)
 - **Spark master** — spark://localhost:7077, UI at http://localhost:8081
 - **Spark worker** — connects to master automatically

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import dagster
 from pyspark.sql import functions as F
 
@@ -20,23 +22,26 @@ def bronze_orders(spark: SparkResource) -> dagster.Output[None]:
     """
     session = spark.get_session()
 
-    # Example: read from a source path (configurable via env)
-    import os
-
     source_path = os.getenv("BRONZE_ORDERS_SOURCE", "data/raw/orders/")
-    target_path = os.getenv("BRONZE_ORDERS_TARGET", "data/bronze/orders/")
+    catalog_name = os.getenv("CATALOG_NAME", "unity")
+    table_name = f"{catalog_name}.bronze.orders"
 
     df = session.read.option("header", "true").csv(source_path)
 
     # Add ingestion metadata
     df_with_metadata = df.withColumn("ingested_at", F.current_timestamp())
 
-    df_with_metadata.write.format("delta").mode("append").save(target_path)
+    # Write via Unity Catalog if configured, otherwise fall back to file path
+    if os.getenv("UC_SERVER_URL"):
+        df_with_metadata.write.format("delta").mode("append").saveAsTable(table_name)
+    else:
+        target_path = os.getenv("BRONZE_ORDERS_TARGET", "data/bronze/orders/")
+        df_with_metadata.write.format("delta").mode("append").save(target_path)
 
     return dagster.Output(
         None,
         metadata={
             "row_count": dagster.MetadataValue.int(df_with_metadata.count()),
-            "target_path": dagster.MetadataValue.text(target_path),
+            "table": dagster.MetadataValue.text(table_name),
         },
     )

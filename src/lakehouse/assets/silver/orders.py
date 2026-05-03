@@ -29,11 +29,15 @@ def silver_orders(spark: SparkResource) -> dagster.Output[None]:
     """
     session = spark.get_session()
 
-    source_path = os.getenv("BRONZE_ORDERS_TARGET", "data/bronze/orders/")
-    target_path = os.getenv("SILVER_ORDERS_TARGET", "data/silver/orders/")
+    catalog_name = os.getenv("CATALOG_NAME", "unity")
+    use_uc = bool(os.getenv("UC_SERVER_URL"))
 
     # Read from bronze
-    bronze_df = session.read.format("delta").load(source_path)
+    if use_uc:
+        bronze_df = session.read.table(f"{catalog_name}.bronze.orders")
+    else:
+        source_path = os.getenv("BRONZE_ORDERS_TARGET", "data/bronze/orders/")
+        bronze_df = session.read.format("delta").load(source_path)
 
     # Deduplicate: keep latest ingestion per order_id
     deduped = dedup_by_key(
@@ -52,12 +56,17 @@ def silver_orders(spark: SparkResource) -> dagster.Output[None]:
     # Enforce silver schema (cast types, validate columns)
     conformed = enforce_schema(enriched, ORDERS_SILVER_SCHEMA)
 
-    conformed.write.format("delta").mode("overwrite").save(target_path)
+    table_name = f"{catalog_name}.silver.orders"
+    if use_uc:
+        conformed.write.format("delta").mode("overwrite").saveAsTable(table_name)
+    else:
+        target_path = os.getenv("SILVER_ORDERS_TARGET", "data/silver/orders/")
+        conformed.write.format("delta").mode("overwrite").save(target_path)
 
     return dagster.Output(
         None,
         metadata={
             "row_count": dagster.MetadataValue.int(conformed.count()),
-            "target_path": dagster.MetadataValue.text(target_path),
+            "table": dagster.MetadataValue.text(table_name),
         },
     )

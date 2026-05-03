@@ -22,10 +22,15 @@ def gold_daily_sales(spark: SparkResource) -> dagster.Output[None]:
     """
     session = spark.get_session()
 
-    source_path = os.getenv("SILVER_ORDERS_TARGET", "data/silver/orders/")
-    target_path = os.getenv("GOLD_DAILY_SALES_TARGET", "data/gold/daily_sales/")
+    catalog_name = os.getenv("CATALOG_NAME", "unity")
+    use_uc = bool(os.getenv("UC_SERVER_URL"))
 
-    silver_df = session.read.format("delta").load(source_path)
+    # Read from silver
+    if use_uc:
+        silver_df = session.read.table(f"{catalog_name}.silver.orders")
+    else:
+        source_path = os.getenv("SILVER_ORDERS_TARGET", "data/silver/orders/")
+        silver_df = session.read.format("delta").load(source_path)
 
     daily_sales = silver_df.groupBy(
         F.col("order_date").alias("sales_date"),
@@ -36,12 +41,17 @@ def gold_daily_sales(spark: SparkResource) -> dagster.Output[None]:
         F.count("order_id").alias("order_count"),
     )
 
-    daily_sales.write.format("delta").mode("overwrite").save(target_path)
+    table_name = f"{catalog_name}.gold.daily_sales"
+    if use_uc:
+        daily_sales.write.format("delta").mode("overwrite").saveAsTable(table_name)
+    else:
+        target_path = os.getenv("GOLD_DAILY_SALES_TARGET", "data/gold/daily_sales/")
+        daily_sales.write.format("delta").mode("overwrite").save(target_path)
 
     return dagster.Output(
         None,
         metadata={
             "row_count": dagster.MetadataValue.int(daily_sales.count()),
-            "target_path": dagster.MetadataValue.text(target_path),
+            "table": dagster.MetadataValue.text(table_name),
         },
     )

@@ -15,6 +15,9 @@ spark-warehouse/
 metastore_db/
 derby.log
 
+# Data
+data/
+
 # Delta Lake
 _delta_log/
 
