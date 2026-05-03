@@ -21,7 +21,7 @@ def get_spark_session(
 
     spark_master = os.getenv("SPARK_MASTER", "local[*]")
     environment = os.getenv("ENV", "local")
-    catalog_name = os.getenv("CATALOG_NAME", "main")
+    catalog_name = os.getenv("CATALOG_NAME", "lakehouse")
     uc_server_url = os.getenv("UC_SERVER_URL", "")
     minio_endpoint = os.getenv("MINIO_ENDPOINT", "")
     minio_access_key = os.getenv("MINIO_ACCESS_KEY", "")

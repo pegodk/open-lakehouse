@@ -22,7 +22,7 @@ def gold_daily_sales(spark: SparkResource) -> dagster.Output[None]:
     """
     session = spark.get_session()
 
-    catalog_name = os.getenv("CATALOG_NAME", "unity")
+    catalog_name = os.getenv("CATALOG_NAME", "lakehouse")
     use_uc = bool(os.getenv("UC_SERVER_URL"))
 
     # Read from silver

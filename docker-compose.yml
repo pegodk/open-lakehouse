@@ -1,6 +1,10 @@
 services:
   unity-catalog:
     image: unitycatalog/unitycatalog:main
+    networks:
+      default:
+        aliases:
+          - server
     ports:
       - "8080:8080"
     environment:

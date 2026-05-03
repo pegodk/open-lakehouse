@@ -23,7 +23,7 @@ def bronze_orders(spark: SparkResource) -> dagster.Output[None]:
     session = spark.get_session()
 
     source_path = os.getenv("BRONZE_ORDERS_SOURCE", "data/raw/orders/")
-    catalog_name = os.getenv("CATALOG_NAME", "unity")
+    catalog_name = os.getenv("CATALOG_NAME", "lakehouse")
     table_name = f"{catalog_name}.bronze.orders"
 
     df = session.read.option("header", "true").csv(source_path)
