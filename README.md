@@ -7,23 +7,26 @@ An open-source data lakehouse built on **PySpark**, **Delta Lake**, and **Unity 
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌───────────────┐
 │   Dagster   │────▶│  PySpark + Delta │────▶│  MinIO (S3)   │
-│ Orchestrator│     │  Processing      │     │  Object Store │
+│ Orchestrator│     │  (large jobs)    │     │  Object Store │
+│             │────▶│  DuckDB + Delta  │     │               │
+│             │     │  (small jobs)    │     │               │
 └─────────────┘     └──────────────────┘     └───────────────┘
                             │
                             ▼
                     ┌──────────────────┐
                     │  Unity Catalog   │
-                    │  (Metadata)      │
+                    │  (Metadata /     │
+                    │   Governance)    │
                     └──────────────────┘
 ```
 
 **Medallion layers:**
 
-| Layer | Purpose |
-|-------|---------|
-| Bronze | Raw ingestion with `ingested_at` timestamp |
-| Silver | Deduplication, schema enforcement, enrichment |
-| Gold | Business-level aggregations |
+| Layer | Purpose | Engine |
+|-------|---------|--------|
+| Bronze | Raw ingestion with `ingested_at` timestamp | Spark |
+| Silver | Deduplication, schema enforcement, enrichment | Spark |
+| Gold | Business-level aggregations | Spark or **DuckDB** |
 
 ## Function Library
 
@@ -99,7 +102,10 @@ Open http://localhost:3000 to materialize assets.
 ```
 open-lakehouse/
 ├── src/lakehouse/
-│   ├── assets/              # Dagster assets (bronze/silver/gold)
+│   ├── assets/
+│   │   ├── bronze/          # Raw ingestion (Spark)
+│   │   ├── silver/          # Cleansed / enriched (Spark)
+│   │   └── gold/            # Aggregations (Spark + DuckDB)
 │   ├── lib/                 # Reusable Spark functions
 │   ├── models/              # Schema definitions (StructTypes)
 │   ├── resources/           # Dagster resources (SparkResource)
@@ -126,6 +132,65 @@ The `SPARK_MASTER` env var controls where Spark runs:
 
 - **PR:** Lint (ruff) + unit tests on Python 3.11/3.12 matrix
 - **Merge to main:** Integration tests with Docker Compose services
+
+## Tech Stack Rationale
+
+### The four-component model
+
+| Component | Role | "Why this one?" |
+|-----------|------|-----------------|
+| **Unity Catalog OSS** | Metadata & governance | Single namespace (`catalog.schema.table`) across every engine; fine-grained ACLs; open REST API |
+| **Delta Lake** | Storage format | ACID transactions, time-travel, Z-ordering, Change Data Feed; works equally well from Spark, DuckDB, Rust, and Python |
+| **Apache Spark** | Heavy compute | Distributed processing for large ingestion, complex joins, and ML feature pipelines (bronze → silver) |
+| **DuckDB** | Lightweight compute | In-process SQL engine for smaller aggregations and ad-hoc analysis with no JVM overhead (smaller gold jobs) |
+
+The key insight is that **Delta Lake is the integration layer**. Because every engine can read and write the same Delta files, you can pick the right tool per job without copying data or maintaining separate stores.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Unity Catalog (metadata)              │
+│   catalog.bronze.*   catalog.silver.*   catalog.gold.*  │
+└───────────────────────────┬─────────────────────────────┘
+                            │ same Delta files
+              ┌─────────────┼─────────────┐
+              ▼             ▼             ▼
+         Apache Spark    DuckDB      delta-rs / Arrow
+         (large jobs)  (small jobs)  (Python / Rust)
+```
+
+### Alternatives and trade-offs
+
+#### Apache Polaris + Apache Iceberg
+
+[Apache Polaris](https://polaris.apache.org/) is the open-source catalog originally developed by Snowflake. [Apache Iceberg](https://iceberg.apache.org/) is the table format it most naturally pairs with.
+
+| Dimension | Polaris + Iceberg | Unity Catalog + Delta Lake |
+|-----------|------------------|---------------------------|
+| **Catalog maturity** | Newer project (Apache incubation); smaller community | UC OSS backed by Databricks; large OSS community |
+| **Spark integration** | Good via `IcebergSparkSessionExtensions` | Native — Delta is a first-class Spark data source |
+| **DuckDB reading** | Via Iceberg REST catalog or file scanning | Via `delta` extension or direct Parquet scan |
+| **ACID guarantees** | Full (v2 row-level deletes) | Full (optimistic concurrency, MVCC) |
+| **Time travel** | Yes (snapshot-based) | Yes (version + timestamp-based) |
+| **Merge / UPSERT** | `MERGE INTO` in Spark/Flink | `MERGE INTO` + `upsert()` helper in this repo |
+| **Change Data Feed** | Not built-in (use Flink CDC) | Built-in `SHOW CHANGES` / CDF |
+| **Vendor neutrality** | Purely Apache-governed | Apache-licensed but Databricks-led |
+| **Multi-engine** | Strong (Flink, Trino, Spark, Snowflake) | Strong (Spark, DuckDB, Trino, Athena) |
+
+**When Polaris + Iceberg makes sense:** you need tight Flink integration, you run workloads on Snowflake or Trino as primary engines, or you require a purely Apache-governed stack.
+
+**When Unity Catalog + Delta Lake makes sense (this project):** you use Spark as the primary processing engine, want Change Data Feed for incremental pipelines, value the simpler DuckDB/Python integration via `deltalake` (delta-rs), and prefer the larger Delta Lake OSS ecosystem.
+
+#### Apache Hive Metastore + Parquet / ORC
+
+The traditional Hadoop-era approach. Still common in legacy clusters but lacks ACID semantics, time travel, and schema evolution. No meaningful path to supporting multiple compute engines cleanly.
+
+#### Project Nessie + Apache Iceberg
+
+[Nessie](https://projectnessie.org/) adds Git-like branching to Iceberg — you can create a branch, run ETL, and merge it like a pull request. Compelling for complex multi-team pipelines but introduces operational overhead most projects don't need at the start.
+
+#### AWS Glue Data Catalog + Iceberg
+
+Fully managed, zero-ops, and integrates well with Athena and EMR. The trade-off is vendor lock-in: Glue is AWS-specific, and migrating away is painful.
 
 ## License
 

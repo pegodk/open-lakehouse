@@ -9,6 +9,8 @@ dependencies = [
     "dagster>=1.7,<2.0",
     "dagster-webserver>=1.7,<2.0",
     "python-dotenv>=1.0",
+    "duckdb>=1.1",
+    "deltalake>=0.20",
 ]
 
 [project.optional-dependencies]
